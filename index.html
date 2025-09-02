@@ -2,19 +2,81 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <title>API Tester</title>
+  <title>API Tester - BattleStats</title>
   <style>
     body { font-family: sans-serif; margin: 20px; }
     label { display: block; margin-top: 10px; }
-    textarea { width: 100%; height: 100px; }
-    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+    select, input, textarea, button { width: 100%; padding: 8px; margin-top: 5px; }
+    textarea { height: 120px; resize: vertical; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin: 10px 0; }
+    .api-section { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    .client-api { border-color: #28a745; }
+    .server-api { border-color: #dc3545; }
+    .hidden { display: none; }
+    button { background: #007bff; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #0056b3; }
   </style>
 </head>
 <body>
-  <h1>Тест Client API BattleStats</h1>
+  <h1>API Tester - BattleStats</h1>
   
   <label>
-    Метод:
+    Тип API:
+    <select id="apiType" onchange="switchApiType()">
+      <option value="client">Client API (/api/battle-stats) - З браузера</option>
+      <option value="server">Server API (/api/server) - Тільки сервер-до-сервер</option>
+    </select>
+  </label>
+
+  <!-- Warning for Server API -->
+  <div id="serverWarning" class="warning hidden">
+    ⚠️ <strong>Увага:</strong> Server API не працює з браузера через CORS! 
+    Використовуйте Postman, curl або Node.js для тестування.
+  </div>
+
+  <div id="clientSection" class="api-section client-api">
+    <h3>🌐 Client API - /api/battle-stats</h3>
+    <p>Безпека: CORS + X-API-Key</p>
+    
+    <label>
+      Endpoint:
+      <select id="clientEndpoint">
+        <option value="health">GET /health (без автентифікації)</option>
+        <option value="version">GET /version (без автентифікації)</option>
+        <option value="stats">GET /stats</option>
+        <option value="other-players">GET /other-players</option>
+        <option value="update-stats">POST /update-stats</option>
+        <option value="import">POST /import</option>
+        <option value="clear">DELETE /clear</option>
+        <option value="battle/123">DELETE /battle/:battleId</option>
+        <option value="clear-database">DELETE /clear-database (потрібен X-Secret-Key!)</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="serverSection" class="api-section server-api hidden">
+    <h3>🖥️ Server API - /api/server</h3>
+    <p>Безпека: X-Secret-Key + X-API-Key (без CORS)</p>
+    
+    <label>
+      Endpoint:
+      <select id="serverEndpoint">
+        <option value="health">GET /health (без автентифікації)</option>
+        <option value="version">GET /version (без автентифікації)</option>
+        <option value="stats">GET /stats</option>
+        <option value="other-players">GET /other-players</option>
+        <option value="update-stats">POST /update-stats</option>
+        <option value="import">POST /import</option>
+        <option value="clear">DELETE /clear</option>
+        <option value="battle/456">DELETE /battle/:battleId</option>
+        <option value="clear-database">DELETE /clear-database</option>
+      </select>
+    </label>
+  </div>
+
+  <label>
+    Метод (авто-визначається):
     <select id="method">
       <option value="GET">GET</option>
       <option value="POST">POST</option>
@@ -23,22 +85,13 @@
   </label>
 
   <label>
-    Endpoint:
-    <select id="endpoint">
-      <option value="stats">GET /stats</option>
-      <option value="other-players">GET /other-players</option>
-      <option value="update-stats">POST /update-stats</option>
-      <option value="import">POST /import</option>
-      <option value="clear">DELETE /clear</option>
-      <option value="battle/123">DELETE /battle/:battleId</option>
-      <option value="health">GET /health</option>
-      <option value="version">GET /version</option>
-    </select>
-  </label>
-
-  <label>
     X-API-Key:
     <input type="text" id="apiKey" value="test" />
+  </label>
+
+  <label id="secretKeyLabel">
+    X-Secret-Key:
+    <input type="password" id="secretKey" placeholder="Введіть секретний ключ" />
   </label>
 
   <label>
@@ -48,32 +101,122 @@
   
   <label>
     Тіло запиту (JSON):
-    <textarea id="body">{}</textarea>
+    <textarea id="body" placeholder='Приклад для update-stats:
+{
+  "BattleStats": {
+    "arena123": {
+      "startTime": 1693123456000,
+      "duration": 300,
+      "win": 1,
+      "mapName": "Test Map",
+      "players": {
+        "player123": {
+          "name": "TestPlayer",
+          "damage": 1500,
+          "kills": 3,
+          "points": 2000,
+          "vehicle": "Tank T-34"
+        }
+      }
+    }
+  },
+  "PlayerInfo": {
+    "player123": "TestPlayer"
+  }
+}'>{}</textarea>
   </label>
   
-  <button id="send">Надіслати</button>
+  <button id="send" onclick="sendRequest()">Надіслати Запит</button>
   
   <h2>Результат:</h2>
-  <pre id="output"></pre>
+  <div>
+    <strong>URL:</strong> <span id="requestUrl">-</span><br>
+    <strong>Status:</strong> <span id="responseStatus">-</span><br>
+    <strong>Headers:</strong> <span id="responseHeaders">-</span>
+  </div>
+  <pre id="output">Натисніть "Надіслати Запит" для тестування API</pre>
   
   <script>
     const BASE_URL = "https://node-websocket-758468a49fee.herokuapp.com";
     
-    document.getElementById("send").addEventListener("click", async () => {
+    function switchApiType() {
+      const apiType = document.getElementById("apiType").value;
+      const clientSection = document.getElementById("clientSection");
+      const serverSection = document.getElementById("serverSection");
+      const serverWarning = document.getElementById("serverWarning");
+      
+      if (apiType === "client") {
+        clientSection.classList.remove("hidden");
+        serverSection.classList.add("hidden");
+        serverWarning.classList.add("hidden");
+        updateMethodFromEndpoint();
+      } else {
+        clientSection.classList.add("hidden");
+        serverSection.classList.remove("hidden");
+        serverWarning.classList.remove("hidden");
+        updateMethodFromEndpoint();
+      }
+    }
+    
+    function updateMethodFromEndpoint() {
+      const apiType = document.getElementById("apiType").value;
+      const endpoint = apiType === "client" 
+        ? document.getElementById("clientEndpoint").value 
+        : document.getElementById("serverEndpoint").value;
+      
+      const methodSelect = document.getElementById("method");
+      
+      if (endpoint.includes("update-stats") || endpoint.includes("import")) {
+        methodSelect.value = "POST";
+      } else if (endpoint.includes("clear") || endpoint.includes("battle/")) {
+        methodSelect.value = "DELETE";  
+      } else {
+        methodSelect.value = "GET";
+      }
+    }
+    
+    // Auto-update method when endpoint changes
+    document.getElementById("clientEndpoint").addEventListener("change", updateMethodFromEndpoint);
+    document.getElementById("serverEndpoint").addEventListener("change", updateMethodFromEndpoint);
+    
+    async function sendRequest() {
+      const apiType = document.getElementById("apiType").value;
       const method = document.getElementById("method").value;
-      const endpoint = document.getElementById("endpoint").value;
+      const endpoint = apiType === "client" 
+        ? document.getElementById("clientEndpoint").value 
+        : document.getElementById("serverEndpoint").value;
       const apiKey = document.getElementById("apiKey").value;
+      const secretKey = document.getElementById("secretKey").value;
       const playerId = document.getElementById("playerId").value;
       const body = document.getElementById("body").value;
-      const output = document.getElementById("output");
       
-      output.textContent = "Виконується запит...";
+      const output = document.getElementById("output");
+      const requestUrl = document.getElementById("requestUrl");
+      const responseStatus = document.getElementById("responseStatus");
+      const responseHeaders = document.getElementById("responseHeaders");
+      
+      // Build URL
+      const baseApiPath = apiType === "client" ? "/api/battle-stats" : "/api/server";
+      const fullUrl = `${BASE_URL}${baseApiPath}/${endpoint}`;
+      
+      requestUrl.textContent = fullUrl;
+      output.textContent = "🔄 Виконується запит...";
+      responseStatus.textContent = "Очікування...";
+      responseHeaders.textContent = "-";
       
       try {
+        // Build headers
         const headers = {
           "Content-Type": "application/json",
-          "X-API-Key": apiKey
         };
+        
+        if (apiKey) {
+          headers["X-API-Key"] = apiKey;
+        }
+        
+        if (secretKey && (apiType === "server" || endpoint === "clear-database")) {
+          headers["X-Secret-Key"] = secretKey;
+        }
         
         if (playerId) {
           headers["X-Player-ID"] = playerId;
@@ -82,11 +225,23 @@
         const options = { method, headers };
         
         if (method !== "GET" && body.trim() !== "") {
-          options.body = body;
+          try {
+            JSON.parse(body);
+            options.body = body;
+          } catch (e) {
+            output.textContent = `❌ Невалідний JSON: ${e.message}`;
+            return;
+          }
         }
         
-        const res = await fetch(`${BASE_URL}/api/battle-stats/${endpoint}`, options);
-        const responseText = await res.text();
+        const response = await fetch(fullUrl, options);
+        const responseText = await response.text();
+        
+        responseStatus.textContent = `${response.status} ${response.statusText}`;
+        const headersList = Array.from(response.headers.entries())
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ');
+        responseHeaders.textContent = headersList || "Немає заголовків";
         
         try {
           const jsonResponse = JSON.parse(responseText);
@@ -95,12 +250,24 @@
           output.textContent = responseText;
         }
         
+        if (response.ok) {
+          output.style.border = "3px solid #28a745";
+        } else {
+          output.style.border = "3px solid #dc3545";
+        }
+        
       } catch (err) {
-        output.textContent = "Помилка: " + err.message;
+        output.textContent = `❌ Помилка запиту: ${err.message}`;
+        output.style.border = "3px solid #dc3545";
+        responseStatus.textContent = "Помилка мережі";
+        
+        if (err.message.includes("fetch")) {
+          output.textContent += `\n\n💡 Підказка: Якщо це CORS помилка для /api/server, це нормально - цей API не призначений для браузера!`;
+        }
       }
-    });
+    }
+    
+    switchApiType();
   </script>
 </body>
 </html>
-
-
