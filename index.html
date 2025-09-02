@@ -80,6 +80,7 @@
           <button class="quick-btn" onclick="loadAllData()">🔄 Оновити дані</button>
           <button class="quick-btn" onclick="loadPlayerInfo()">👤 Гравці</button>
           <button class="quick-btn" onclick="loadBattles()">⚔️ Бої</button>
+          <button class="quick-btn" style="background: #dc3545;" onclick="clearAllData()">🗑️ Очистити всі дані</button>
         </div>
 
         <div id="playerData" class="data-display">
@@ -93,6 +94,17 @@
           <h4>⚔️ Історія боїв</h4>
           <div id="battleList" class="battle-list">
             <p>Натисніть "Оновити дані" для завантаження</p>
+          </div>
+        </div>
+
+        <div class="data-display">
+          <h4>🛠️ Управління даними</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
+            <input type="text" id="battleIdToDelete" placeholder="ID бою для видалення" style="margin: 0;">
+            <button class="quick-btn" style="background: #ffc107; color: #000;" onclick="deleteBattle()">🗑️ Видалити бій</button>
+          </div>
+          <div class="info">
+            <strong>Попередження:</strong> Видалення даних незворотне. Переконайтесь, що ви дійсно хочете видалити дані.
           </div>
         </div>
       </div>
@@ -291,7 +303,11 @@
         const date = new Date(battle.startTime).toLocaleString('uk-UA');
         
         return `
-          <div class="item">
+          <div class="item" style="position: relative;">
+            <button onclick="deleteSingleBattle('${arenaId}')" 
+                    style="position: absolute; top: 5px; right: 5px; background: #dc3545; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer; font-size: 12px;">
+              ✕
+            </button>
             <strong>Арена:</strong> ${arenaId}<br>
             <strong>Карта:</strong> ${battle.mapName}<br>
             <strong>Результат:</strong> ${winText}<br>
@@ -360,6 +376,57 @@
         await makeRequest('POST', '/update-stats', jsonData);
       } catch (error) {
         document.getElementById('output').textContent = `❌ Невалідний JSON: ${error.message}`;
+        document.getElementById('output').className = 'output error';
+      }
+    }
+
+    async function clearAllData() {
+      if (!confirm('Ви впевнені, що хочете видалити ВСІ дані для вашого API ключа? Ця дія незворотна!')) {
+        return;
+      }
+
+      const result = await makeRequest('DELETE', '/clear');
+      if (result.success) {
+        lastData = { BattleStats: {}, PlayerInfo: {} };
+        updateDataDisplay();
+        document.getElementById('output').textContent = '✅ Всі дані успішно видалено';
+        document.getElementById('output').className = 'output success';
+      }
+    }
+
+    async function deleteBattle() {
+      const battleId = document.getElementById('battleIdToDelete').value.trim();
+      
+      if (!battleId) {
+        alert('Введіть ID бою для видалення');
+        return;
+      }
+
+      if (!confirm(`Ви впевнені, що хочете видалити бій ${battleId}?`)) {
+        return;
+      }
+
+      const result = await makeRequest('DELETE', `/battle/${encodeURIComponent(battleId)}`);
+      if (result.success) {
+        document.getElementById('battleIdToDelete').value = '';
+        await loadAllData();
+        document.getElementById('output').textContent = `✅ Бій ${battleId} успішно видалено`;
+        document.getElementById('output').className = 'output success';
+      }
+    }
+
+    async function deleteSingleBattle(battleId) {
+      if (!confirm(`Видалити бій ${battleId}?`)) {
+        return;
+      }
+
+      const result = await makeRequest('DELETE', `/battle/${encodeURIComponent(battleId)}`, null, false);
+      if (result.success) {
+        await loadAllData();
+        document.getElementById('output').textContent = `✅ Бій ${battleId} видалено`;
+        document.getElementById('output').className = 'output success';
+      } else {
+        document.getElementById('output').textContent = `❌ Помилка при видаленні бою ${battleId}`;
         document.getElementById('output').className = 'output error';
       }
     }
