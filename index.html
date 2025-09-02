@@ -4,270 +4,370 @@
   <meta charset="UTF-8">
   <title>API Tester - BattleStats</title>
   <style>
-    body { font-family: sans-serif; margin: 20px; }
-    label { display: block; margin-top: 10px; }
-    select, input, textarea, button { width: 100%; padding: 8px; margin-top: 5px; }
-    textarea { height: 120px; resize: vertical; }
-    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
-    .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin: 10px 0; }
-    .api-section { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
-    .client-api { border-color: #28a745; }
-    .server-api { border-color: #dc3545; }
-    .hidden { display: none; }
-    button { background: #007bff; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; }
+    body { font-family: sans-serif; margin: 20px; background: #f8f9fa; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .section { background: white; border-radius: 8px; padding: 20px; margin: 15px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    label { display: block; margin: 10px 0 5px 0; font-weight: bold; }
+    select, input, textarea, button { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+    textarea { height: 150px; resize: vertical; font-family: monospace; }
+    button { background: #007bff; color: white; border: none; cursor: pointer; font-size: 16px; }
     button:hover { background: #0056b3; }
+    button:disabled { background: #6c757d; cursor: not-allowed; }
+    .output { background: #f8f9fa; padding: 15px; border-radius: 4px; border: 2px solid #e9ecef; font-family: monospace; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+    .success { border-color: #28a745; background: #d4edda; }
+    .error { border-color: #dc3545; background: #f8d7da; }
+    .info { background: #d1ecf1; border: 1px solid #bee5eb; padding: 10px; border-radius: 4px; margin: 10px 0; }
+    .tabs { display: flex; margin-bottom: 20px; }
+    .tab { padding: 12px 24px; background: #e9ecef; border: none; cursor: pointer; margin-right: 5px; border-radius: 4px 4px 0 0; }
+    .tab.active { background: #007bff; color: white; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 15px 0; }
+    .quick-btn { padding: 8px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .quick-btn:hover { background: #545b62; }
+    .data-display { background: white; padding: 15px; border-radius: 4px; margin: 10px 0; }
+    .player-list, .battle-list { max-height: 300px; overflow-y: auto; }
+    .item { padding: 8px; margin: 5px 0; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #007bff; }
   </style>
 </head>
 <body>
-  <h1>API Tester - BattleStats</h1>
-  
-  <label>
-    Тип API:
-    <select id="apiType" onchange="switchApiType()">
-      <option value="client">Client API (/api/battle-stats) - З браузера</option>
-      <option value="server">Server API (/api/server) - Тільки сервер-до-сервер</option>
-    </select>
-  </label>
+  <div class="container">
+    <div class="header">
+      <h1>🎮 BattleStats API Tester</h1>
+      <p>Тестування API для статистики боїв World of Tanks</p>
+    </div>
 
-  <!-- Warning for Server API -->
-  <div id="serverWarning" class="warning hidden">
-    ⚠️ <strong>Увага:</strong> Server API не працює з браузера через CORS! 
-    Використовуйте Postman, curl або Node.js для тестування.
+    <div class="section">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('request')">📡 Запити</button>
+        <button class="tab" onclick="switchTab('data')">📊 Перегляд даних</button>
+        <button class="tab" onclick="switchTab('send')">📤 Відправка даних</button>
+      </div>
+
+      <div id="requestTab" class="tab-content active">
+        <h3>Налаштування запиту</h3>
+        
+        <label>API Key:</label>
+        <input type="text" id="apiKey" value="test" placeholder="Введіть ваш API ключ">
+        
+        <label>Player ID (опціонально):</label>
+        <input type="text" id="playerId" placeholder="123456789" value="123456789">
+
+        <div class="quick-actions">
+          <button class="quick-btn" onclick="quickRequest('health')">🟢 Перевірити статус</button>
+          <button class="quick-btn" onclick="quickRequest('stats')">📊 Отримати всі дані</button>
+          <button class="quick-btn" onclick="quickRequest('stats-paginated')">📄 Отримати з пагінацією</button>
+          <button class="quick-btn" onclick="quickRequest('other-players')">👥 Дані інших гравців</button>
+        </div>
+
+        <label>Власний запит:</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+          <select id="method">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <input type="text" id="endpoint" placeholder="/stats" value="/stats">
+          <button onclick="sendCustomRequest()">Відправити</button>
+        </div>
+      </div>
+
+      <div id="dataTab" class="tab-content">
+        <h3>Перегляд даних</h3>
+        
+        <div class="quick-actions">
+          <button class="quick-btn" onclick="loadAllData()">🔄 Оновити дані</button>
+          <button class="quick-btn" onclick="loadPlayerInfo()">👤 Гравці</button>
+          <button class="quick-btn" onclick="loadBattles()">⚔️ Бої</button>
+        </div>
+
+        <div id="playerData" class="data-display">
+          <h4>👥 Інформація про гравців</h4>
+          <div id="playerList" class="player-list">
+            <p>Натисніть "Оновити дані" для завантаження</p>
+          </div>
+        </div>
+
+        <div id="battleData" class="data-display">
+          <h4>⚔️ Історія боїв</h4>
+          <div id="battleList" class="battle-list">
+            <p>Натисніть "Оновити дані" для завантаження</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="sendTab" class="tab-content">
+        <h3>Відправка тестових даних</h3>
+        
+        <div class="quick-actions">
+          <button class="quick-btn" onclick="generateTestData()">🎲 Згенерувати тестові дані</button>
+          <button class="quick-btn" onclick="sendTestBattle()">⚔️ Відправити тестовий бій</button>
+          <button class="quick-btn" onclick="addTestPlayer()">👤 Додати тестового гравця</button>
+        </div>
+
+        <label>JSON дані для відправки:</label>
+        <textarea id="jsonData" placeholder="Дані будуть згенеровані автоматично або введіть власні">{}</textarea>
+        
+        <button onclick="sendData()">📤 Відправити дані</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>📋 Результат</h3>
+      <div class="info">
+        <strong>URL:</strong> <span id="requestUrl">-</span><br>
+        <strong>Статус:</strong> <span id="responseStatus">-</span><br>
+        <strong>Час запиту:</strong> <span id="requestTime">-</span>
+      </div>
+      <div id="output" class="output">Виберіть дію вище для початку роботи з API</div>
+    </div>
   </div>
 
-  <div id="clientSection" class="api-section client-api">
-    <h3>🌐 Client API - /api/battle-stats</h3>
-    <p>Безпека: CORS + X-API-Key</p>
-    
-    <label>
-      Endpoint:
-      <select id="clientEndpoint">
-        <option value="health">GET /health (без автентифікації)</option>
-        <option value="version">GET /version (без автентифікації)</option>
-        <option value="stats">GET /stats</option>
-        <option value="other-players">GET /other-players</option>
-        <option value="update-stats">POST /update-stats</option>
-        <option value="import">POST /import</option>
-        <option value="clear">DELETE /clear</option>
-        <option value="battle/123">DELETE /battle/:battleId</option>
-        <option value="clear-database">DELETE /clear-database (потрібен X-Secret-Key!)</option>
-      </select>
-    </label>
-  </div>
-
-  <div id="serverSection" class="api-section server-api hidden">
-    <h3>🖥️ Server API - /api/server</h3>
-    <p>Безпека: X-Secret-Key + X-API-Key (без CORS)</p>
-    
-    <label>
-      Endpoint:
-      <select id="serverEndpoint">
-        <option value="health">GET /health (без автентифікації)</option>
-        <option value="version">GET /version (без автентифікації)</option>
-        <option value="stats">GET /stats</option>
-        <option value="other-players">GET /other-players</option>
-        <option value="update-stats">POST /update-stats</option>
-        <option value="import">POST /import</option>
-        <option value="clear">DELETE /clear</option>
-        <option value="battle/456">DELETE /battle/:battleId</option>
-        <option value="clear-database">DELETE /clear-database</option>
-      </select>
-    </label>
-  </div>
-
-  <label>
-    Метод (авто-визначається):
-    <select id="method">
-      <option value="GET">GET</option>
-      <option value="POST">POST</option>
-      <option value="DELETE">DELETE</option>
-    </select>
-  </label>
-
-  <label>
-    X-API-Key:
-    <input type="text" id="apiKey" value="test" />
-  </label>
-
-  <label id="secretKeyLabel">
-    X-Secret-Key:
-    <input type="password" id="secretKey" placeholder="Введіть секретний ключ" />
-  </label>
-
-  <label>
-    X-Player-ID (для деяких endpoints):
-    <input type="text" id="playerId" placeholder="player123" />
-  </label>
-  
-  <label>
-    Тіло запиту (JSON):
-    <textarea id="body" placeholder='Приклад для update-stats:
-{
-  "BattleStats": {
-    "arena123": {
-      "startTime": 1693123456000,
-      "duration": 300,
-      "win": 1,
-      "mapName": "Test Map",
-      "players": {
-        "player123": {
-          "name": "TestPlayer",
-          "damage": 1500,
-          "kills": 3,
-          "points": 2000,
-          "vehicle": "Tank T-34"
-        }
-      }
-    }
-  },
-  "PlayerInfo": {
-    "player123": "TestPlayer"
-  }
-}'>{}</textarea>
-  </label>
-  
-  <button id="send" onclick="sendRequest()">Надіслати Запит</button>
-  
-  <h2>Результат:</h2>
-  <div>
-    <strong>URL:</strong> <span id="requestUrl">-</span><br>
-    <strong>Status:</strong> <span id="responseStatus">-</span><br>
-    <strong>Headers:</strong> <span id="responseHeaders">-</span>
-  </div>
-  <pre id="output">Натисніть "Надіслати Запит" для тестування API</pre>
-  
   <script>
     const BASE_URL = "https://node-websocket-758468a49fee.herokuapp.com";
-    
-    function switchApiType() {
-      const apiType = document.getElementById("apiType").value;
-      const clientSection = document.getElementById("clientSection");
-      const serverSection = document.getElementById("serverSection");
-      const serverWarning = document.getElementById("serverWarning");
+    let lastData = null;
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
       
-      if (apiType === "client") {
-        clientSection.classList.remove("hidden");
-        serverSection.classList.add("hidden");
-        serverWarning.classList.add("hidden");
-        updateMethodFromEndpoint();
-      } else {
-        clientSection.classList.add("hidden");
-        serverSection.classList.remove("hidden");
-        serverWarning.classList.remove("hidden");
-        updateMethodFromEndpoint();
+      document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+      document.getElementById(tabName + 'Tab').classList.add('active');
+    }
+
+    async function makeRequest(method, endpoint, body = null, showInOutput = true) {
+      const apiKey = document.getElementById('apiKey').value;
+      const playerId = document.getElementById('playerId').value;
+      
+      const url = `${BASE_URL}/api/battle-stats${endpoint}`;
+      const startTime = Date.now();
+      
+      if (showInOutput) {
+        document.getElementById('requestUrl').textContent = url;
+        document.getElementById('responseStatus').textContent = 'Завантаження...';
+        document.getElementById('output').textContent = '🔄 Виконується запит...';
+        document.getElementById('output').className = 'output';
+      }
+
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey
+        };
+
+        if (playerId) {
+          headers['X-Player-ID'] = playerId;
+        }
+
+        const options = { method, headers };
+        if (body) {
+          options.body = typeof body === 'string' ? body : JSON.stringify(body);
+        }
+
+        const response = await fetch(url, options);
+        const responseText = await response.text();
+        const endTime = Date.now();
+        
+        let jsonResponse;
+        try {
+          jsonResponse = JSON.parse(responseText);
+        } catch {
+          jsonResponse = { rawResponse: responseText };
+        }
+
+        if (showInOutput) {
+          document.getElementById('responseStatus').textContent = `${response.status} ${response.statusText}`;
+          document.getElementById('requestTime').textContent = `${endTime - startTime}ms`;
+          document.getElementById('output').textContent = JSON.stringify(jsonResponse, null, 2);
+          document.getElementById('output').className = response.ok ? 'output success' : 'output error';
+        }
+
+        return { success: response.ok, status: response.status, data: jsonResponse };
+
+      } catch (error) {
+        if (showInOutput) {
+          document.getElementById('responseStatus').textContent = 'Помилка мережі';
+          document.getElementById('output').textContent = `❌ Помилка: ${error.message}`;
+          document.getElementById('output').className = 'output error';
+        }
+        return { success: false, error: error.message };
       }
     }
-    
-    function updateMethodFromEndpoint() {
-      const apiType = document.getElementById("apiType").value;
-      const endpoint = apiType === "client" 
-        ? document.getElementById("clientEndpoint").value 
-        : document.getElementById("serverEndpoint").value;
-      
-      const methodSelect = document.getElementById("method");
-      
-      if (endpoint.includes("update-stats") || endpoint.includes("import")) {
-        methodSelect.value = "POST";
-      } else if (endpoint.includes("clear") || endpoint.includes("battle/")) {
-        methodSelect.value = "DELETE";  
-      } else {
-        methodSelect.value = "GET";
+
+    async function quickRequest(type) {
+      switch(type) {
+        case 'health':
+          await makeRequest('GET', '/health');
+          break;
+        case 'stats':
+          const result = await makeRequest('GET', '/stats?limit=0');
+          if (result.success) {
+            lastData = result.data;
+          }
+          break;
+        case 'stats-paginated':
+          await makeRequest('GET', '/stats?page=1&limit=5');
+          break;
+        case 'other-players':
+          await makeRequest('GET', '/other-players');
+          break;
       }
     }
-    
-    // Auto-update method when endpoint changes
-    document.getElementById("clientEndpoint").addEventListener("change", updateMethodFromEndpoint);
-    document.getElementById("serverEndpoint").addEventListener("change", updateMethodFromEndpoint);
-    
-    async function sendRequest() {
-      const apiType = document.getElementById("apiType").value;
-      const method = document.getElementById("method").value;
-      const endpoint = apiType === "client" 
-        ? document.getElementById("clientEndpoint").value 
-        : document.getElementById("serverEndpoint").value;
-      const apiKey = document.getElementById("apiKey").value;
-      const secretKey = document.getElementById("secretKey").value;
-      const playerId = document.getElementById("playerId").value;
-      const body = document.getElementById("body").value;
+
+    async function sendCustomRequest() {
+      const method = document.getElementById('method').value;
+      const endpoint = document.getElementById('endpoint').value;
+      await makeRequest(method, endpoint);
+    }
+
+    async function loadAllData() {
+      const result = await makeRequest('GET', '/stats?limit=0', null, false);
+      if (result.success) {
+        lastData = result.data;
+        updateDataDisplay();
+        document.getElementById('output').textContent = '✅ Дані успішно завантажено';
+        document.getElementById('output').className = 'output success';
+      }
+    }
+
+    async function loadPlayerInfo() {
+      if (lastData && lastData.PlayerInfo) {
+        displayPlayers(lastData.PlayerInfo);
+      } else {
+        await loadAllData();
+      }
+    }
+
+    async function loadBattles() {
+      if (lastData && lastData.BattleStats) {
+        displayBattles(lastData.BattleStats);
+      } else {
+        await loadAllData();
+      }
+    }
+
+    function updateDataDisplay() {
+      if (!lastData) return;
       
-      const output = document.getElementById("output");
-      const requestUrl = document.getElementById("requestUrl");
-      const responseStatus = document.getElementById("responseStatus");
-      const responseHeaders = document.getElementById("responseHeaders");
+      if (lastData.PlayerInfo) {
+        displayPlayers(lastData.PlayerInfo);
+      }
       
-      // Build URL
-      const baseApiPath = apiType === "client" ? "/api/battle-stats" : "/api/server";
-      const fullUrl = `${BASE_URL}${baseApiPath}/${endpoint}`;
+      if (lastData.BattleStats) {
+        displayBattles(lastData.BattleStats);
+      }
+    }
+
+    function displayPlayers(playerInfo) {
+      const playerList = document.getElementById('playerList');
+      const players = Object.entries(playerInfo);
       
-      requestUrl.textContent = fullUrl;
-      output.textContent = "🔄 Виконується запит...";
-      responseStatus.textContent = "Очікування...";
-      responseHeaders.textContent = "-";
+      if (players.length === 0) {
+        playerList.innerHTML = '<p>Немає даних про гравців</p>';
+        return;
+      }
+
+      playerList.innerHTML = players.map(([id, name]) => `
+        <div class="item">
+          <strong>ID:</strong> ${id}<br>
+          <strong>Ім'я:</strong> ${name}
+        </div>
+      `).join('');
+    }
+
+    function displayBattles(battleStats) {
+      const battleList = document.getElementById('battleList');
+      const battles = Object.entries(battleStats);
+      
+      if (battles.length === 0) {
+        battleList.innerHTML = '<p>Немає даних про бої</p>';
+        return;
+      }
+
+      battleList.innerHTML = battles.map(([arenaId, battle]) => {
+        const playersCount = Object.keys(battle.players || {}).length;
+        const winText = battle.win === 1 ? '🟢 Перемога' : battle.win === 0 ? '🔴 Поразка' : '⚪ Нічия';
+        const date = new Date(battle.startTime).toLocaleString('uk-UA');
+        
+        return `
+          <div class="item">
+            <strong>Арена:</strong> ${arenaId}<br>
+            <strong>Карта:</strong> ${battle.mapName}<br>
+            <strong>Результат:</strong> ${winText}<br>
+            <strong>Тривалість:</strong> ${Math.floor(battle.duration / 60)}:${String(battle.duration % 60).padStart(2, '0')}<br>
+            <strong>Гравців:</strong> ${playersCount}<br>
+            <strong>Дата:</strong> ${date}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function generateTestData() {
+      const arenaId = Date.now();
+      const playerId = document.getElementById('playerId').value || '123456789';
+      
+      const testData = {
+        "BattleStats": {
+          [arenaId]: {
+            "startTime": Date.now(),
+            "duration": Math.floor(Math.random() * 600) + 180,
+            "win": Math.floor(Math.random() * 3) - 1,
+            "mapName": "Тестова карта " + Math.floor(Math.random() * 10),
+            "players": {
+              [playerId]: {
+                "name": "Тестовий Гравець",
+                "damage": Math.floor(Math.random() * 3000) + 500,
+                "kills": Math.floor(Math.random() * 5),
+                "points": Math.floor(Math.random() * 2000) + 500,
+                "vehicle": "T-34-85"
+              }
+            }
+          }
+        },
+        "PlayerInfo": {
+          [playerId]: "Тестовий Гравець"
+        }
+      };
+
+      document.getElementById('jsonData').value = JSON.stringify(testData, null, 2);
+    }
+
+    async function sendTestBattle() {
+      generateTestData();
+      await sendData();
+    }
+
+    async function addTestPlayer() {
+      const playerId = prompt('Введіть ID гравця:') || Date.now().toString();
+      const playerName = prompt('Введіть ім\'я гравця:') || 'Новий Гравець';
+      
+      const testData = {
+        "PlayerInfo": {
+          [playerId]: playerName
+        }
+      };
+
+      document.getElementById('jsonData').value = JSON.stringify(testData, null, 2);
+      await sendData();
+    }
+
+    async function sendData() {
+      const jsonData = document.getElementById('jsonData').value;
       
       try {
-        // Build headers
-        const headers = {
-          "Content-Type": "application/json",
-        };
-        
-        if (apiKey) {
-          headers["X-API-Key"] = apiKey;
-        }
-        
-        if (secretKey && (apiType === "server" || endpoint === "clear-database")) {
-          headers["X-Secret-Key"] = secretKey;
-        }
-        
-        if (playerId) {
-          headers["X-Player-ID"] = playerId;
-        }
-        
-        const options = { method, headers };
-        
-        if (method !== "GET" && body.trim() !== "") {
-          try {
-            JSON.parse(body);
-            options.body = body;
-          } catch (e) {
-            output.textContent = `❌ Невалідний JSON: ${e.message}`;
-            return;
-          }
-        }
-        
-        const response = await fetch(fullUrl, options);
-        const responseText = await response.text();
-        
-        responseStatus.textContent = `${response.status} ${response.statusText}`;
-        const headersList = Array.from(response.headers.entries())
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(', ');
-        responseHeaders.textContent = headersList || "Немає заголовків";
-        
-        try {
-          const jsonResponse = JSON.parse(responseText);
-          output.textContent = JSON.stringify(jsonResponse, null, 2);
-        } catch {
-          output.textContent = responseText;
-        }
-        
-        if (response.ok) {
-          output.style.border = "3px solid #28a745";
-        } else {
-          output.style.border = "3px solid #dc3545";
-        }
-        
-      } catch (err) {
-        output.textContent = `❌ Помилка запиту: ${err.message}`;
-        output.style.border = "3px solid #dc3545";
-        responseStatus.textContent = "Помилка мережі";
-        
-        if (err.message.includes("fetch")) {
-          output.textContent += `\n\n💡 Підказка: Якщо це CORS помилка для /api/server, це нормально - цей API не призначений для браузера!`;
-        }
+        JSON.parse(jsonData);
+        await makeRequest('POST', '/update-stats', jsonData);
+      } catch (error) {
+        document.getElementById('output').textContent = `❌ Невалідний JSON: ${error.message}`;
+        document.getElementById('output').className = 'output error';
       }
     }
-    
-    switchApiType();
+
+    // Автоматично завантажити дані при завантаженні сторінки
+    window.addEventListener('load', () => {
+      loadAllData();
+    });
   </script>
 </body>
 </html>
