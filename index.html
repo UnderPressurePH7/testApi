@@ -137,7 +137,7 @@
   </div>
 
   <script>
-    const BASE_URL = "https://nodeserver-758468a49fee.herokuapp.com";
+    const BASE_URL = "https://node-websocket-758468a49fee.herokuapp.com";
     let lastData = null;
 
     function switchTab(tabName) {
@@ -175,6 +175,11 @@
         const options = { method, headers };
         if (body) {
           options.body = typeof body === 'string' ? body : JSON.stringify(body);
+        }
+
+        // Додаємо mode для обходу CORS в крайньому випадку
+        if (method === 'GET') {
+          options.mode = 'cors';
         }
 
         const response = await fetch(url, options);
