@@ -137,7 +137,7 @@
   </div>
 
   <script>
-    const BASE_URL = "https://node-websocket-758468a49fee.herokuapp.com";
+    const BASE_URL = "https://nodeserver-758468a49fee.herokuapp.com";
     let lastData = null;
 
     function switchTab(tabName) {
@@ -168,7 +168,7 @@
           'X-API-Key': apiKey
         };
 
-        if (playerId) {
+        if (playerId && (endpoint === '/other-players' || method === 'POST')) {
           headers['X-Player-ID'] = playerId;
         }
 
@@ -280,12 +280,16 @@
         return;
       }
 
-      playerList.innerHTML = players.map(([id, name]) => `
-        <div class="item">
-          <strong>ID:</strong> ${id}<br>
-          <strong>Ім'я:</strong> ${name}
-        </div>
-      `).join('');
+      playerList.innerHTML = players.map(([id, playerData]) => {
+        const name = typeof playerData === 'string' ? playerData : 
+                    (playerData && playerData._id ? playerData._id : 'Невідомо');
+        return `
+          <div class="item">
+            <strong>ID:</strong> ${id}<br>
+            <strong>Ім'я:</strong> ${name}
+          </div>
+        `;
+      }).join('');
     }
 
     function displayBattles(battleStats) {
@@ -299,7 +303,7 @@
 
       battleList.innerHTML = battles.map(([arenaId, battle]) => {
         const playersCount = Object.keys(battle.players || {}).length;
-        const winText = battle.win === 1 ? '🟢 Перемога' : battle.win === 0 ? '🔴 Поразка' : '⚪ Нічия';
+        const winText = battle.win === 1 ? '🟢 Перемога' : battle.win === 0 ? '🔴 Поразка' : '⚪ Нічия/Невідомо';
         const date = new Date(battle.startTime).toLocaleString('uk-UA');
         
         return `
@@ -309,9 +313,9 @@
               ✕
             </button>
             <strong>Арена:</strong> ${arenaId}<br>
-            <strong>Карта:</strong> ${battle.mapName}<br>
+            <strong>Карта:</strong> ${battle.mapName || 'Unknown Map'}<br>
             <strong>Результат:</strong> ${winText}<br>
-            <strong>Тривалість:</strong> ${Math.floor(battle.duration / 60)}:${String(battle.duration % 60).padStart(2, '0')}<br>
+            <strong>Тривалість:</strong> ${Math.floor((battle.duration || 0) / 60)}:${String((battle.duration || 0) % 60).padStart(2, '0')}<br>
             <strong>Гравців:</strong> ${playersCount}<br>
             <strong>Дата:</strong> ${date}
           </div>
@@ -431,7 +435,6 @@
       }
     }
 
-    // Автоматично завантажити дані при завантаженні сторінки
     window.addEventListener('load', () => {
       loadAllData();
     });
