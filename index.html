@@ -292,10 +292,6 @@
       }
     }
   },
-  "PlayerInfo": {
-    "1": {
-      "_id": "TestPlayer"
-    }
   }
 }</textarea>
                     </div>
@@ -554,14 +550,17 @@
             updateWSStatus('Підключення...', 'ws-connecting');
             logWS('Підключення до WebSocket...');
             
-            socket = io(config.baseUrl, {
+            // ВИПРАВЛЕНО: підключення до основного домену з правильним path
+            socket = io('https://under.if.ua', {
                 transports: ['websocket', 'polling'],
-                reconnectionAttempts: 5
+                reconnectionAttempts: 5,
+                path: '/widget/socket.io/'  // Вказуємо правильний шлях
             });
             
             socket.on('connect', () => {
                 updateWSStatus('Підключено', 'ws-connected');
                 logWS('✅ Підключено до WebSocket');
+                logWS(`Socket ID: ${socket.id}`);
             });
             
             socket.on('disconnect', () => {
@@ -577,6 +576,10 @@
                 logWS(`❌ Помилка аутентифікації: ${JSON.stringify(data)}`);
             });
             
+            socket.on('subscribed', (data) => {
+                logWS(`✅ Підписка успішна: ${JSON.stringify(data)}`);
+            });
+            
             socket.on('dataResponse', (data) => {
                 logWS(`📥 Отримано дані: ${JSON.stringify(data, null, 2)}`);
             });
@@ -585,8 +588,25 @@
                 logWS(`🔄 Оновлення даних: ${JSON.stringify(data, null, 2)}`);
             });
             
+            socket.on('dataSet', (data) => {
+                logWS(`✅ Дані збережено: ${JSON.stringify(data)}`);
+            });
+            
+            socket.on('battleDeleted', (data) => {
+                logWS(`🗑️ Бій видалено: ${JSON.stringify(data)}`);
+            });
+            
+            socket.on('allDataDeleted', (data) => {
+                logWS(`🗑️ Всі дані видалено: ${JSON.stringify(data)}`);
+            });
+            
             socket.on('error', (data) => {
                 logWS(`❌ Помилка: ${JSON.stringify(data)}`);
+            });
+            
+            socket.on('connect_error', (error) => {
+                logWS(`❌ Помилка підключення: ${error.message}`);
+                updateWSStatus('Помилка підключення', 'ws-disconnected');
             });
         }
         
@@ -594,11 +614,15 @@
             if (socket) {
                 socket.disconnect();
                 socket = null;
+                logWS('🔌 Відключено вручну');
             }
         }
         
         function wsAuthenticate() {
-            if (!socket) return;
+            if (!socket || !socket.connected) {
+                logWS('❌ WebSocket не підключений! Спочатку підключіться.');
+                return;
+            }
             const config = getConfig();
             
             socket.emit('authenticate', {
@@ -610,7 +634,10 @@
         }
         
         function wsSubscribe() {
-            if (!socket) return;
+            if (!socket || !socket.connected) {
+                logWS('❌ WebSocket не підключений! Спочатку підключіться.');
+                return;
+            }
             const config = getConfig();
             
             socket.emit('subscribe', { keyId: config.keyId });
@@ -618,14 +645,20 @@
         }
         
         function wsGetData() {
-            if (!socket) return;
+            if (!socket || !socket.connected) {
+                logWS('❌ WebSocket не підключений! Спочатку підключіться.');
+                return;
+            }
             
             socket.emit('getData', {});
             logWS('📤 GetData');
         }
         
         function wsSetData() {
-            if (!socket) return;
+            if (!socket || !socket.connected) {
+                logWS('❌ WebSocket не підключений! Спочатку підключіться.');
+                return;
+            }
             
             try {
                 const battleData = JSON.parse(document.getElementById('battleData').value);
@@ -637,14 +670,20 @@
         }
         
         function wsRefresh() {
-            if (!socket) return;
+            if (!socket || !socket.connected) {
+                logWS('❌ WebSocket не підключений! Спочатку підключіться.');
+                return;
+            }
             
             socket.emit('forceRefresh', {});
             logWS('📤 ForceRefresh');
         }
         
         function wsDeleteAll() {
-            if (!socket) return;
+            if (!socket || !socket.connected) {
+                logWS('❌ WebSocket не підключений! Спочатку підключіться.');
+                return;
+            }
             
             if (!confirm('Ви впевнені, що хочете видалити всі дані через WebSocket?')) {
                 return;
@@ -656,7 +695,3 @@
     </script>
 </body>
 </html>
-
-
-
-
