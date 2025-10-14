@@ -275,24 +275,28 @@
                     <div class="form-group">
                         <label>Battle Data (JSON):</label>
                         <textarea id="battleData" rows="6" placeholder='{"BattleStats": {}, "PlayerInfo": {}}'>{
+{
   "BattleStats": {
-    "12345": {
-      "startTime": 1694251200,
-      "duration": 180,
+    "123456789": {
+      "startTime": 1760395792000,
+      "duration": 600000,
       "win": 1,
-      "mapName": "Test Map",
+      "mapName": "Himmelsdorf",
       "players": {
-        "1": {
-          "name": "TestPlayer",
-          "damage": 1500,
-          "kills": 2,
-          "points": 1900,
-          "vehicle": "Test Tank"
+        "596732072": {
+          "name": "MSvaxa",
+          "damage": 2500,
+          "kills": 3,
+          "points": 3700,
+          "vehicle": "IS-7"
         }
       }
     }
   },
+  "PlayerInfo": {
+    "596732072": "MSvaxa"
   }
+}
 }</textarea>
                     </div>
                     <button onclick="testPostData()">Зберегти дані</button>
@@ -695,3 +699,4 @@
     </script>
 </body>
 </html>
+
